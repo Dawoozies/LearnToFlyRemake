@@ -11,7 +11,9 @@ Shader "Unlit/Skybox"
         _HorizonColor ("Horizon Color", Color) = (0,0,0,0)
         _SkyColor ("Sky Color", Color) = (0,0,0,0)
         _StarPower ("Star Power", float) = 0.0 
-        _YShift ("Y Shift", float) = 0.0
+        _YShift ("Y Shift", Range(-1,1)) = 0.0
+        _XMod("X Mod", Range(0,1)) = 0.0
+        _YMod("Y Mod", Range(0,1)) = 0.0
     }
 
     SubShader
@@ -47,6 +49,9 @@ Shader "Unlit/Skybox"
             float _StarPower;
 
             float _YShift;
+            float _XMod;
+            float _YMod;
+
             float3 RotateAroundYInDegrees(float3 vertex, float degrees)
             {
                 float alpha = degrees * UNITY_PI / 180.0;
@@ -62,6 +67,15 @@ Shader "Unlit/Skybox"
                 float x = atan2(pos.x,pos.z)/UNITY_TWO_PI;
                 float y = asin(pos.y)/UNITY_HALF_PI;
                 return float2(x,y);
+            }
+            float4 StarLayer(float2 uv, float2 tiling, float2 offset)
+            {
+                fixed4 stars = tex2D(_Voronoi, uv*tiling + offset);
+                stars = saturate(stars);
+                stars = 1 - stars;
+                stars = pow(stars, _StarPower);
+                stars *= _Exposure;
+                return stars;
             }
             struct appdata_t
             {
@@ -98,6 +112,7 @@ Shader "Unlit/Skybox"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                fixed4 output;
                 fixed4 c = fixed4(0,0,0,0);
                 if(_DebugUV >= 0.5)
                 {
@@ -107,14 +122,11 @@ Shader "Unlit/Skybox"
                     c.xyz *= _Exposure;
                     return half4(c.xyz, 1);
                 }
-                c = lerp(_HorizonColor, _SkyColor, i.uvSky.y);
-                fixed4 stars = tex2D(_Voronoi, i.uvSky.xy*_Voronoi_ST.xy + _Voronoi_ST.zw);
-                stars = saturate(stars);
-                stars = 1 - stars;
-                stars = pow(stars, _StarPower);
-                float4 starsOuter = smoothstep(0,1-stars, i.uvSky.y%_YShift);
-                stars = starsOuter;
-                return c + stars;
+                c = lerp(_HorizonColor, _SkyColor, i.uvSky.y-_YShift);
+                fixed4 starLayer1 = StarLayer(i.uvSky.xy, _Voronoi_ST.xy, _Voronoi_ST.zw);
+                fixed4 starLayer2 = StarLayer(i.uvSky.yx, _Voronoi_ST.yx, _Voronoi_ST.zw);
+                output = c+starLayer1+starLayer2;
+                return output;
             }
             ENDCG
         }
