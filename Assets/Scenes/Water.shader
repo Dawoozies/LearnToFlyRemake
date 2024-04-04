@@ -10,10 +10,15 @@ Shader "Unlit/Water"
 		_Speed("Wave Speed", float) = 0.5
 		_Amount("Wave Amount", float) = 0.5
 		_Height("Wave Height", Range(0,1)) = 0.5
+		_DepthIntersectThickness("Object Intersect Thickness", float) = 1.0
+		_DepthIntersectTint("Object Intersect Tint", color) = (1,1,1,1)
 	}
 
     SubShader
     {
+	    Tags { "RenderType"="Opaque"  "Queue" = "Transparent" }
+		LOD 100
+		Blend SrcAlpha OneMinusSrcAlpha
         Pass
         {
             CGPROGRAM
@@ -25,8 +30,10 @@ Shader "Unlit/Water"
             sampler2D _CausticTex, _DistortionTex;
             float4 _CausticTex_ST, _DistortionTex_ST;
             float _animSpeed, _distortionRadius;
-            float _Speed, _Amount, _Height;
+            float _Speed, _Amount, _Height,_DepthIntersectThickness;
             samplerCUBE _ReflectionMap;
+			float4 _DepthIntersectTint;
+            uniform sampler2D _CameraDepthTexture;
 
 			struct appdata
 			{
@@ -42,6 +49,7 @@ Shader "Unlit/Water"
                 float4 pos : SV_POSITION;
             	float2 uv : TEXCOORD2;
             	float2 distortionUV : TEXCOORD3;
+            	float4 screenPos : TEXCOORD4;
             };
 
 
@@ -59,6 +67,8 @@ Shader "Unlit/Water"
                 o.pos = UnityObjectToClipPos(v.vertex);
             	o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
+
+            	o.screenPos = ComputeScreenPos(o.pos);
                 return o;
             }
         
@@ -97,6 +107,10 @@ Shader "Unlit/Water"
             	float4 reflectionCol = half4(skyColor,1.0);
             	float4 darkCol = dot(causticLerpColor,skyColor);
             	float4 col = darkCol+reflectionCol;
+
+				half depth = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(i.screenPos)));
+            	half4 foamLine = 1 - saturate(_DepthIntersectThickness*(depth - i.screenPos.w));
+            	col += foamLine*_DepthIntersectTint*(1+causticLerpColor);
             	return col;
             }
             ENDCG
