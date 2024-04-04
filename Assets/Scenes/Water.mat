@@ -43,11 +43,12 @@ Material:
     m_Floats:
     - _Amount: 10000
     - _DistortSpeed: 1
-    - _Height: 0.001
+    - _Height: 0.0008
     - _Roughness: 0
     - _Scale: 1
     - _Speed: 0.25
-    - _animSpeed: 0
+    - _animSpeed: 0.01
+    - _distortionRadius: 0.005
     - _frame: 0
     - _maxFrames: 1
     m_Colors: []
